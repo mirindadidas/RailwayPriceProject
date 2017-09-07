@@ -1,0 +1,444 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
+using System.Data;
+using System.Text.RegularExpressions;
+
+namespace MySqlThings
+{
+    public class SelectMySqlToDataSet
+    {
+       public string errmessege = "未选定数据行，请先点击数据行";
+        public System.Data.DataSet TableNamesList(string DBNAME,string USERID,string PASSWORD,string DATABASE)
+        {
+           string errmessege = "";
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";//DBPARA
+            MySqlConnection mycon = new MySqlConnection(constr);
+            try
+            {
+                mycon.Open();
+                MySqlCommand mycmd = new MySqlCommand("select table_name from information_schema.tables where table_schema='"+DATABASE+"' and table_type='base table'", mycon);
+                MySqlDataReader dr = mycmd.ExecuteReader();
+                DataTable dt = new DataTable();
+                dt.Load(dr);
+                DataSet ds = new DataSet();
+                ds.Tables.Add(dt);
+                dr.Close();
+                return ds;                
+            }
+            catch (Exception ex)
+            {errmessege=ex.Message;return null; }
+            finally
+            {
+                mycon.Close();
+            }
+
+        }
+        public System.Data.DataSet ShowColumns(string DBNAME, string USERID, string PASSWORD, string DATABASE,string TABLENAME)
+        {
+           
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            MySqlConnection mycon = new MySqlConnection(constr);
+            try
+            {
+                mycon.Open();
+                MySqlCommand mycmd = new MySqlCommand("SHOW columns FROM "+TABLENAME, mycon);
+                MySqlDataReader dr = mycmd.ExecuteReader();
+                DataTable dt = new DataTable();
+                dt.Load(dr);
+                DataSet ds = new DataSet();
+                ds.Tables.Add(dt);
+                dr.Close();
+                return ds;
+            }
+            catch (Exception ex)
+            { errmessege = ex.Message;  return null; }
+            finally
+            {
+                mycon.Close();
+            }
+
+        }
+        public System.Data.DataSet  ShowTable(string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            MySqlConnection mycon = new MySqlConnection(constr);
+            try
+            {
+                mycon.Open();
+                MySqlCommand mycmd = new MySqlCommand("select * from " + TABLENAME, mycon);
+                MySqlDataReader dr = mycmd.ExecuteReader();
+                DataTable dt = new DataTable();
+                dt.Load(dr);
+                DataSet ds = new DataSet();
+                ds.Tables.Add(dt);
+                dr.Close();
+                return ds;
+            }
+            catch (Exception ex)
+            { errmessege = ex.Message; return null; }
+            finally
+            {
+                mycon.Close();
+            }
+        }
+        public int line = 0;
+        public List<string> ColumnNameReader(string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {           
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            List<string> columnNameList = new List<string> { };
+            //columnNameList.Clear();
+            MySqlConnection mycon = new MySqlConnection(constr);
+            try
+            {
+                mycon.Open();
+                MySqlCommand mycmd = new MySqlCommand("show columns from "+TABLENAME+";", mycon);
+                MySqlDataReader columnNameReader = null;
+                   columnNameReader = mycmd.ExecuteReader();
+                //line = mycmd.ExecuteNonQuery();
+               while (columnNameReader.Read())
+                {
+                    columnNameList.Add(columnNameReader[0].ToString().Trim());
+                }
+                columnNameReader.Close();
+                return columnNameList;
+            }
+            catch (Exception ex)
+            {
+                errmessege = ex.Message; return null;
+            }
+            finally
+            {
+                mycon.Close();
+            }
+        }
+        public List<string> ColumnTypeReader(string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            List<string> columnNameList = new List<string> { };
+            MySqlConnection mycon = new MySqlConnection(constr);
+            try
+            {
+                mycon.Open();
+                MySqlCommand mycmd = new MySqlCommand("show columns from " + TABLENAME + ";", mycon);
+                MySqlDataReader columnNameReader = null;
+                columnNameReader = mycmd.ExecuteReader();
+                while (columnNameReader.Read())
+                {
+                    columnNameList.Add(columnNameReader[1].ToString().Trim());
+                }
+                columnNameReader.Close();
+                return columnNameList;
+            }
+            catch (Exception ex)
+            {
+                errmessege = ex.Message; return null;
+            }
+            finally
+            {
+                mycon.Close();
+            }
+        }
+        public static int GetNumberInt(string str)
+        {
+            int result = 0;
+            if (str != null && str != string.Empty)
+            {
+                // 正则表达式剔除非数字字符（不包含小数点.）
+                str = Regex.Replace(str, @"[^\d.\d]", "");
+                // 如果是数字，则转换为decimal类型
+                if (Regex.IsMatch(str, @"^[+-]?\d*[.]?\d*$"))
+                {
+                    result = int.Parse(str);
+                }
+            }
+            return result;
+        }
+        /// <summary>
+        /// 增加“is null”处理
+        /// </summary>
+        /// <param name="columnvalueslist"></param>
+        /// <param name="columntypeslist"></param>
+        /// <returns></returns>
+        public static List<string> GetInsertValuesList(List<string> columnvalueslist,List<string>columntypeslist)
+        {
+            int i = columnvalueslist.Count;
+            int j = columntypeslist.Count;
+            List<string> templist = new List<string> ();
+            if (i * j != 0)
+            {
+                try
+                {
+                    int k = i-1;
+                    while (k >=0)
+                    {
+                        if (columnvalueslist[i - 1 - k] == "")
+                        {
+                            templist.Add("''");
+                        }
+                        else if (columnvalueslist[i - 1 - k] == null)
+                        {
+                            templist.Add(" is null");
+                        }
+                        else if (columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("blob") || columntypeslist[i - 1 - k].Contains("nchar") || columntypeslist[i - 1 - k].Contains("char") || columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("data") || columntypeslist[i - 1 - k].Contains("time"))
+                        {
+                            templist.Add("'" + columnvalueslist[i - 1 - k] + "'");
+                        }
+                        else if (columntypeslist[i - 1 - k].Contains("int") || columntypeslist[i - 1 - k].Contains("float") || columntypeslist[i - 1 - k].Contains("double") || columntypeslist[i - 1 - k].Contains("decimal"))
+                        {
+                            templist.Add(columnvalueslist[i - 1 - k]);
+                        }
+                        else
+                        {
+                            templist.Add(columnvalueslist[i - 1 - k]);
+                        }
+                        k--;
+                    }
+                    return templist;
+                }
+                catch
+                { return null; }
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+        public static List<string> GetInsertValuesList1(List<string> columnvalueslist, List<string> columntypeslist)
+        {
+            int i = columnvalueslist.Count;
+            int j = columntypeslist.Count;
+            List<string> templist = new List<string>();
+            if (i * j != 0)
+            {
+                try
+                {
+                    int k = i - 1;
+                    while (k >= 0)
+                    {
+                        
+                       if (columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("blob") || columntypeslist[i - 1 - k].Contains("nchar") || columntypeslist[i - 1 - k].Contains("char") || columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("data") || columntypeslist[i - 1 - k].Contains("time"))
+                        {
+                            if (columnvalueslist[i - 1 - k].Length == 0)
+                            { templist.Add("nullxxx"); }
+                            else
+                            {
+                                templist.Add("'" + columnvalueslist[i - 1 - k] + "'");
+                            }
+                        }
+                        else if (columntypeslist[i - 1 - k].Contains("int") || columntypeslist[i - 1 - k].Contains("float") || columntypeslist[i - 1 - k].Contains("double") || columntypeslist[i - 1 - k].Contains("decimal"))
+                        {
+                            if (columnvalueslist[i - 1 - k].Length == 0)
+                            { templist.Add("nullxxx"); }
+                            else
+                            {
+                                templist.Add(columnvalueslist[i - 1 - k]);
+                            }
+                        }
+                        else
+                        {
+                            if (columnvalueslist[i - 1 - k].Length == 0)
+                            { templist.Add("nullxxx"); }
+                            else
+                            {
+                                templist.Add(columnvalueslist[i - 1 - k]);
+                            }
+                        }
+                        k--;
+                    }
+                    return templist;
+                }
+                catch
+                { return null; }
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+        public static List<string> GetInsertValuesList2(List<string> columnvalueslist, List<string> columntypeslist)
+        {
+            int i = columnvalueslist.Count;
+            int j = columntypeslist.Count;
+            List<string> templist = new List<string>();
+            if (i * j != 0)
+            {
+                try
+                {
+                    int k = i - 1;
+                    while (k >= 0)
+                    {  
+                        if (columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("blob") || columntypeslist[i - 1 - k].Contains("nchar") || columntypeslist[i - 1 - k].Contains("char") || columntypeslist[i - 1 - k].Contains("text") || columntypeslist[i - 1 - k].Contains("data") || columntypeslist[i - 1 - k].Contains("time"))
+                        {
+                            templist.Add("'" + columnvalueslist[i - 1 - k] + "'");
+                        }
+                        else if (columntypeslist[i - 1 - k].Contains("int") || columntypeslist[i - 1 - k].Contains("float") || columntypeslist[i - 1 - k].Contains("double") || columntypeslist[i - 1 - k].Contains("decimal"))
+                        {
+                            templist.Add(columnvalueslist[i - 1 - k]);
+                        }
+                        else
+                        {
+                            templist.Add(columnvalueslist[i - 1 - k]);
+                        }
+                        k--;
+                    }
+                    return templist;
+                }
+                catch
+                { return null; }
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+        public static string insertData(string insertsqltext, string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            MySqlConnection con = new MySqlConnection(constr);
+            try
+            {
+                con.Open();
+                MySqlCommand cmd = new MySqlCommand(insertsqltext, con);
+                int i = cmd.ExecuteNonQuery();
+                if (i == 1)
+                {
+                    return "success";
+                }
+                else
+                {
+                    return "fault";
+                }
+            }
+            catch (Exception exx)
+            {
+                return exx.Message;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+        /// <summary>
+        /// 拼接sql字符串，并对空值进行处理（is null）
+        /// </summary>
+        /// <param name="columnnamelist"></param>
+        /// <param name="valuelist"></param>
+        /// <returns></returns>
+        public static List<string> GetDeleteWhereSqlStr(List<string> columnnamelist, List<string>valuelist)
+        {
+            List<string> temp = new List<string>();
+            int i = 0;
+            i = columnnamelist.Count;
+            for (int j = 0; j < i; j++)
+            {
+                if (valuelist[j] == " is null ")
+                {
+                    temp.Add(columnnamelist[j] + " is null ");
+                }
+                else
+                {
+                    temp.Add(columnnamelist[j] + " = " + valuelist[j]);
+                }
+            }
+            return temp;
+        }
+        public static List<string> GetDeleteWhereSqlStr2(List<string> columnnamelist, List<string> valuelist)
+        {
+            List<string> temp = new List<string>();
+            int i = 0;
+            i = columnnamelist.Count;
+            for (int j = 0; j < i; j++)
+            {
+                if (valuelist[j] == "nullxxx")
+                {
+                    continue;
+                }
+                else
+                {
+                    temp.Add(columnnamelist[j] + " = " + valuelist[j]);
+                }
+            }
+            return temp;
+        }
+        public static List<string> DsToList(System.Data.DataTable dt)
+        {
+            int i = 0;
+            i = dt.Rows.Count;
+            List<string> templist = new List<string>();
+            for (int j = 0; j < i; j++)
+            {
+               string a= dt.Rows[j][0].ToString();
+                templist.Add(a);
+            }
+            return templist;
+        }
+        public string sqlstr = "";
+        public string DeleteData(string deletestr, string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {
+            sqlstr = "";
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            MySqlConnection con = new MySqlConnection(constr);
+            try
+            {
+                con.Open();
+                MySqlCommand cmd = new MySqlCommand("delete from " + TABLENAME + " where (" + deletestr+")",con);
+                sqlstr= cmd.CommandText;
+                int i = cmd.ExecuteNonQuery();
+                if (i == 1)
+                {
+                    return "success";
+                }
+                else
+                {
+                    return "fault";
+                }
+            }
+            catch(Exception exxxx)
+            {
+                return exxxx.Message;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+        public string UpdateData(string updatestr, string DBNAME, string USERID, string PASSWORD, string DATABASE, string TABLENAME)
+        {
+            sqlstr = "";
+            string constr = "server=" + DBNAME + ";User Id=" + USERID + ";password=" + PASSWORD + ";Database=" + DATABASE + ";";
+            MySqlConnection con = new MySqlConnection(constr);
+            try
+            {
+                con.Open();
+                MySqlCommand cmd = new MySqlCommand( updatestr, con);
+                sqlstr = cmd.CommandText;
+                int i = cmd.ExecuteNonQuery();
+                if (i == 1)
+                {
+                    return "success";
+                }
+                else
+                {
+                    return "fault";
+                }
+            }
+            catch (Exception exxxx)
+            {
+                return exxxx.Message;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+    }
+}
+
+
